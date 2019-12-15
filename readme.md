@@ -320,3 +320,56 @@ which gives me an answer of 3406527. and I've got the first start! 🌟
 ### Part 2
 
 We've got recusion! Unfortunately, I think this means I can't avoid reading all of the values into my rust program any longer, but that will have to wait for my next session.
+
+....
+
+And, I'm back for the next session. My strategy is to get it so that we'll read line-delimited inputs from stdin, and then figure out how to do the iteration / summing in rust, rather than the bash script, and get puzzel 1 to run successfully. Then I'll tackle the second puzzel from day 1, and if I've still got time, then I'll proceed to day 2. Lots of new learning of basic stuff in this new ecosystem! I might start by reading docs, rather than just plowing ahead against the compiler like I did before.
+
+I went back to [the book](https://doc.rust-lang.org/book/ch12-01-accepting-command-line-arguments.html#reading-the-argument-values), but this deals with reading from a file, and, for unix-yness, I'd rather read from stdin. I scanned the table of contents on the left- looks like lots of good info I should read at some point, but nothing referencing stdin, so I go back to search `rust stdin` and find https://doc.rust-lang.org/std/io/struct.Stdin.html which looks promising.
+
+The first thing I see in the stdio functions is lots of manual string buffer management. I also see a read_line method. Also, you have to explicitly lock stdin, so concurrency considerations are made explicit. It's not clear to me whether this is some sort of conventional stream interface or if it is specific to stdio. I'm going to try `while`ing `read_line` to read all of my stdin. The book had a heading called [control flow](https://doc.rust-lang.org/book/ch03-05-control-flow.html), so I skim that.
+
+Something really cool I just learned is that syntactical `loop` constructs (`loop` implies an infinite loop until an explicit `break`, which seems neat) can return a value! The example they give is
+
+```rust
+let mut counter = 0;
+let result = loop {
+        counter += 1;
+
+        if counter == 10 {
+            break counter * 2;
+        }
+    };
+```
+
+And I think that's just so dang cool. So rust has 3 kinds of looping, `loop`, `while`, and `for`, the last of which operates on iterables. It seems like it would be cleanest to treat stdin as an iterable of lines. Maybe I'm getting ahead of myself. I search for `rust stdin iterable` anyway. [This stackoverflow](https://stackoverflow.com/questions/55314607/how-to-store-an-iterator-over-stdin-in-a-structure) seems relevant, and shows that there's a `io::stdin().lock().lines()` method available, but only when I import something called `prelude::*`, which I assume is some sort of higher-order stdlib.
+
+At this point, I've got something working, and lots of questions on things to follow up on, such as, what's a trait, and what's this `mut` and `&mut` I keep seeing? I have an idea it means mutable, and that `&` is a reference as in C, but I need to actually read about it. Also, what's `'_` in method signatures?
+
+Now to see about parsing my lines into numbers (i32s should work). I look into `map()` I've seen on this `Line` iterable I've got. I can write a lambda like `x.map(|n| n.foo())`, but unfortunately when I'm inside of a lambda I seem to lose my RLS intellisense. Pity.
+
+And with that, I've moved the logic from the shell script into rust, even if I don't completely understand every line I've got. I feel it's not very idiomatic, especially in my treatment of Result and Option types. It'll come with time.
+
+```rust
+fn main() {
+  let stdin = io::stdin();
+  let input_modules = stdin
+    .lock()
+    .lines()
+    .map(|l| l.unwrap().parse::<i32>().ok().expect(""));
+
+  let mut sum: i32 = 0;
+
+  // day 1 part 1, account for the fuel from the input_modules
+  for n in input_modules {
+    sum += get_required_fuel(n);
+    println!("{:?} {:?}", n, sum);
+  }
+
+  // day 1 part 2, account for the fuel for the fuel, recursively
+  println!("{}", get_required_fuel(sum));
+}
+```
+
+A while later, I've written some of the ugliest code of my life, but I figured out how to get tests
+working, thanks to https://doc.rust-lang.org/book/ch11-01-writing-tests.html#the-anatomy-of-a-test-function , and I'm passing them based on the examples from the problem set. I like to think that if I were coming to the problem with fresh eyes my solution would be cleaner. The math here is quite straightforward, but I'm getting tripped up. I got the answer, though, and sometimes that's enough to move on.
