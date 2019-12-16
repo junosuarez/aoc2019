@@ -1,11 +1,30 @@
 fn main() {
-  let mut memory = parse("1,0,0,3,1,1,2,3,1,3,4,3,1,5,0,3,2,6,1,19,1,5,19,23,1,13,23,27,1,6,27,31,2,31,13,35,1,9,35,39,2,39,13,43,1,43,10,47,1,47,13,51,2,13,51,55,1,55,9,59,1,59,5,63,1,6,63,67,1,13,67,71,2,71,10,75,1,6,75,79,1,79,10,83,1,5,83,87,2,10,87,91,1,6,91,95,1,9,95,99,1,99,9,103,2,103,10,107,1,5,107,111,1,9,111,115,2,13,115,119,1,119,10,123,1,123,10,127,2,127,10,131,1,5,131,135,1,10,135,139,1,139,2,143,1,6,143,0,99,2,14,0,0".to_string());
-  // before running the program, replace position 1 with the value 12 and replace position 2 with the value 2
-  memory[1] = 12;
-  memory[2] = 2;
-  memory = calculate(memory);
+  let mut memory: Vec<i32> = vec![];
 
-  println!("{}", render(memory));
+  // Find the input noun and verb that cause the program to produce the output 19690720.
+  'outer: for noun in 0..100 {
+    for verb in 0..100 {
+      memory = parse("1,0,0,3,1,1,2,3,1,3,4,3,1,5,0,3,2,6,1,19,1,5,19,23,1,13,23,27,1,6,27,31,2,31,13,35,1,9,35,39,2,39,13,43,1,43,10,47,1,47,13,51,2,13,51,55,1,55,9,59,1,59,5,63,1,6,63,67,1,13,67,71,2,71,10,75,1,6,75,79,1,79,10,83,1,5,83,87,2,10,87,91,1,6,91,95,1,9,95,99,1,99,9,103,2,103,10,107,1,5,107,111,1,9,111,115,2,13,115,119,1,119,10,123,1,123,10,127,2,127,10,131,1,5,131,135,1,10,135,139,1,139,2,143,1,6,143,0,99,2,14,0,0".to_string());
+      // before running the program, replace position 1 with the value 12 and replace position 2 with the value 2
+      memory[1] = noun;
+      memory[2] = verb;
+      memory = calculate(memory);
+
+      println!("{}", render(&memory));
+
+      if memory[0] == 19690720 {
+        break 'outer;
+      }
+    }
+  }
+
+  // What is 100 * noun + verb? (For example, if noun=12 and verb=2, the answer would be 1202.)
+  println!(
+    "100 * {} + {} = {}",
+    memory[1],
+    memory[2],
+    100 * memory[1] + memory[2]
+  )
 }
 
 fn parse(expr: String) -> Vec<i32> {
@@ -16,7 +35,7 @@ fn parse(expr: String) -> Vec<i32> {
   return memory;
 }
 
-fn render(memory: Vec<i32>) -> String {
+fn render(memory: &Vec<i32>) -> String {
   return memory
     .iter()
     .map(|s| s.to_string())
@@ -61,7 +80,7 @@ fn calculate(mut memory: Vec<i32>) -> Vec<i32> {
 }
 
 fn calc_str(expr: String) -> String {
-  return render(calculate(parse(expr)));
+  return render(&calculate(parse(expr)));
 }
 
 fn calculate_str(expr: String) -> String {

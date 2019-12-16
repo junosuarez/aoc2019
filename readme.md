@@ -399,3 +399,7 @@ When scaffolding out my tests, I'm confused why I get an error message:
 `"foo".to_string()` looks really strange to me, but it works.
 
 So I ended up using Vectors, which are a low-level construct like an array. I had some trouble indexing, so I searched some and I have to do some manual casting from i32 to usize, see https://users.rust-lang.org/t/is-there-a-way-to-allow-indexing-vec-by-i32-in-my-program/15755 . I also noticed my println statements aren't output when I run `cargo test` for passing tests, only for failing tests- I guess this is nice for keeping things clean.
+
+For the second part, it was fairly easy to modify my program to search for inputs. The trickiest bit was figuring out how to breaK out of multiple levels of loops: it uses [named breaks](https://stackoverflow.com/questions/22905752/named-breaks-in-for-loops-in-rust), similar to javascript.
+
+At this point, the program is really inefficient parsing from strings every time, but so be it.
