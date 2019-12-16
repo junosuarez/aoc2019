@@ -460,3 +460,10 @@ Ultimately I got it to work. It took a few tries, mostly because in my various e
 At this point, some things I'd refactor: extract a visitor for the logo parser, maybe add some higher-level functions that mirror what the examples gave, and maybe wrap up the paths into a context object (struct).
 
 ### Day 4
+
+Alright, let's implement a constraint fuzzer! I need to find the injective set for the domain given that matches the rules. I'm going to implement a predicate function for the rules and then iterate over the set. Should be easy (famous last words).
+
+Two of the rules can be eliminated, since the given domain is all 6-digit numbers, and all within the given domain.
+
+I had a hard time with this one, for one, interpreting what the new rule even meant (english is hard!)
+and for two, dealing with what sort of rust data structure to use. Should I use a Char iter? A Vector? All sorts of other little micro decisions to get wrong that I wouldn't have thought about with javascript, or even java. Eventually I got it. I'm not terribly happy.
