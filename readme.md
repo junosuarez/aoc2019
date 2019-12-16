@@ -467,3 +467,9 @@ Two of the rules can be eliminated, since the given domain is all 6-digit number
 
 I had a hard time with this one, for one, interpreting what the new rule even meant (english is hard!)
 and for two, dealing with what sort of rust data structure to use. Should I use a Char iter? A Vector? All sorts of other little micro decisions to get wrong that I wouldn't have thought about with javascript, or even java. Eventually I got it. I'm not terribly happy.
+
+### Day 5
+
+This is extending day 3. For now, I just copy/pasted the relevant functions. At some point, if there's enough re-use, maybe I'll stop and figure out how rust modules work.
+
+This led me down an exploration of rust enums. The code is a little messier, but not terrible! I added input params as a vector and explored multiple return values to capture the mutated memory and output effects. This got me to the answer for part 1.
