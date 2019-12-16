@@ -423,3 +423,40 @@ struct Point {
 
 This isn't the most memory-efficient data structure (less efficient than a bitmap), but it's really easy to work with for now, and my sizes are tiny. I intend on using set intersection to find my line
 intersection- partially because my geometry is kind of rubbish, and it's easier for me to think in these terms, and again, my set sizes make the computation reasonable.
+
+I implemented a function to parse the path strings and draw them to the HashSet, implementing a basic LOGO language, assuming the pen is always down.
+
+Once I implemented that, intersecting the sets was really easy- `setA::interset(&setB)`. Then, finding the closest from that set of intersections was easy with `setA::min_by`. The tricky bit was figuring out how to write the lambda, using the [`std::cmp::Ordering` enum](https://doc.rust-lang.org/std/cmp/enum.Ordering.html). Ultimately, I inlined it, using the `cmp` method from my `i32` expression.
+
+Altogether:
+
+```rust
+
+fn main() {
+  let path1 = parse("R1004...".to_string());
+  let path2 = parse("L1008...".to_string());
+
+  let intersections = path1.intersection(&path2);
+  println!("intersections: {:?}", intersections);
+
+  // What is the Manhattan distance from the central port to the closest intersection?
+
+  let closest = intersections
+    .min_by(|a, b| (a.x + a.y).cmp(&(b.x + b.y)))
+    .unwrap();
+  println!("closest: {:?}", closest);
+}
+
+```
+
+Easy peasy!
+
+Now, with the twist in part 2, where closest is based on length rather than geometric distance. A nice answer might keep track of the length for each point, changing my Point interface. However, I'm choosing to do a second function which will parse the path again and report the length once it hits a point, something like `get_length_at(path, point)`
+
+The algorithmic part is straightforward. But now I'm running into what every rust newb confronts: fighting with the Borrow checker. These reference lifetimes are rough! In desperation, I try just making copies of the strings in my code. It's soooo awful. It still doesn't work. Ugh.
+
+Ultimately I got it to work. It took a few tries, mostly because in my various efforts in shuffling the string around for the compiler, I forgot I had the `closest` part commented out, and submitted an arbitrary point's distance instead.
+
+At this point, some things I'd refactor: extract a visitor for the logo parser, maybe add some higher-level functions that mirror what the examples gave, and maybe wrap up the paths into a context object (struct).
+
+### Day 4
