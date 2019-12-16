@@ -473,3 +473,5 @@ and for two, dealing with what sort of rust data structure to use. Should I use 
 This is extending day 3. For now, I just copy/pasted the relevant functions. At some point, if there's enough re-use, maybe I'll stop and figure out how rust modules work.
 
 This led me down an exploration of rust enums. The code is a little messier, but not terrible! I added input params as a vector and explored multiple return values to capture the mutated memory and output effects. This got me to the answer for part 1.
+
+For the extended opcodes, implementing them was very straightforward although now I'm feeling pressure to refactor how I'm going about parsing instruction parameters. I implemented a few tests, discovered I had missed advancing the instruction pointer, but once that was fixed, everything worked hunky dory.
