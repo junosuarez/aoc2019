@@ -475,3 +475,7 @@ This is extending day 3. For now, I just copy/pasted the relevant functions. At 
 This led me down an exploration of rust enums. The code is a little messier, but not terrible! I added input params as a vector and explored multiple return values to capture the mutated memory and output effects. This got me to the answer for part 1.
 
 For the extended opcodes, implementing them was very straightforward although now I'm feeling pressure to refactor how I'm going about parsing instruction parameters. I implemented a few tests, discovered I had missed advancing the instruction pointer, but once that was fixed, everything worked hunky dory.
+
+### Day 6
+
+We're dealing with trees (specifically, DAG). I need to find a good data representation (adjaceny matrix?).
