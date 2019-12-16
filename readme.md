@@ -403,3 +403,23 @@ So I ended up using Vectors, which are a low-level construct like an array. I ha
 For the second part, it was fairly easy to modify my program to search for inputs. The trickiest bit was figuring out how to breaK out of multiple levels of loops: it uses [named breaks](https://stackoverflow.com/questions/22905752/named-breaks-in-for-loops-in-rust), similar to javascript.
 
 At this point, the program is really inefficient parsing from strings every time, but so be it.
+
+## day 3
+
+This puzzel requires a couple of parts. One, I need to parse the paths as string input and then
+draw them in a matrix. (I need to figure out what data tpe to use for a matrix in rust. `Vec<Vec<bool>>`?) Then, I need to find where they intersect to get a set of intersections. Last, I need to find the closet intersection in that set (minimum manhattan distance). This third part is easiest.
+
+Manhattan distance, per wiki, is "the sum of the absolute differences of their Cartesian coordinates" which is to say, for a point (x, y) where x and y are positive integers, it's x + y.
+
+I ended up going with a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html) of Points (a basic x,y struct I defined). There are helpful macros to implement a bunch of things I needed, giving:
+
+```rust
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+struct Point {
+  x: i32,
+  y: i32,
+}
+```
+
+This isn't the most memory-efficient data structure (less efficient than a bitmap), but it's really easy to work with for now, and my sizes are tiny. I intend on using set intersection to find my line
+intersection- partially because my geometry is kind of rubbish, and it's easier for me to think in these terms, and again, my set sizes make the computation reasonable.
