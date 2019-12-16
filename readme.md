@@ -373,3 +373,29 @@ fn main() {
 
 A while later, I've written some of the ugliest code of my life, but I figured out how to get tests
 working, thanks to https://doc.rust-lang.org/book/ch11-01-writing-tests.html#the-anatomy-of-a-test-function , and I'm passing them based on the examples from the problem set. I like to think that if I were coming to the problem with fresh eyes my solution would be cleaner. The math here is quite straightforward, but I'm getting tripped up. I got the answer, though, and sometimes that's enough to move on.
+
+## Day 2
+
+I start with `cargo new day02`. I've got to write a calculator program!
+
+Opcodes:
+
+- 1 add
+- 2 mul
+- 99 halt
+
+There's some additional details to how the registers work in the problem itself. This time I'm going to try doing it TDD style. I don't know much about how collections work, but something like a hash map should work for writing this calculator. I have the intuition that this is something that could be written super efficiently in a low-level language like rust, but for now I just want to get the right result, and keep learning rust at my limited level.
+
+When scaffolding out my tests, I'm confused why I get an error message:
+
+```
+24 |     assert_eq!("2,3,0,6,99", calculate("2,3,0,3,99"));
+   |                                        ^^^^^^^^^^^^
+   |                                        |
+   |                                        expected struct `std::string::String`, found reference
+   |                                        help: try using a conversion method: `"2,3,0,3,99".to_string()`
+```
+
+`"foo".to_string()` looks really strange to me, but it works.
+
+So I ended up using Vectors, which are a low-level construct like an array. I had some trouble indexing, so I searched some and I have to do some manual casting from i32 to usize, see https://users.rust-lang.org/t/is-there-a-way-to-allow-indexing-vec-by-i32-in-my-program/15755 . I also noticed my println statements aren't output when I run `cargo test` for passing tests, only for failing tests- I guess this is nice for keeping things clean.
