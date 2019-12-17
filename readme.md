@@ -479,3 +479,32 @@ For the extended opcodes, implementing them was very straightforward although no
 ### Day 6
 
 We're dealing with trees (specifically, DAG). I need to find a good data representation (adjaceny matrix?).
+
+I spent a good long while trying to make my own tree structs, but fell down in spectacular fashion against the borrow checker. I even tried reading about lifetimes to make things better and ended up with monstrosities like:
+
+```rust
+#[derive(Clone, Debug)]
+struct N<'n> {
+  name: String,
+  children: Vec<&'n N<'n>>,
+}
+
+impl<'n> N<'n> {
+  fn of(name: &str) -> N<'n> {
+    N {
+      name: name.to_string(),
+      children: Vec::new(),
+    }
+  }
+}
+```
+
+But in the end I found https://rust-leipzig.github.io/architecture/2016/12/20/idiomatic-trees-in-rust/ and I'm going to try this crate (cute name for a rust package) https://github.com/saschagrunert/indextree - so I get to tackle this package management beast sooner than I thought.
+
+```
+λ cargo install indextree
+```
+
+and away we go!
+
+Wait. That didn't work. That's for installing binaries. How do I add a dep? What's the `npm install` of rust? Per https://doc.rust-lang.org/cargo/guide/dependencies.html , I have to manually edit my Cargo.toml file and rerun `cargo build` - how rubygems-ish.
