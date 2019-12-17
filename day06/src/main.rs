@@ -132,15 +132,11 @@ fn checksum(graph: DiGraphMap<&str, ()>) -> i32 {
       })
     }
   }
-
-  // let walk = DfsPostOrder::new(&g, g.node_indices().next().unwrap());
-  // println!("{:?}", walk.iter().collect());
-
-  // nodes.filter(|n: Nodes<_>| {
-  //   n
-  // });
-  // // let g = graph.into_graph::<usize>();
   acc
+}
+
+fn minspan(graph: DiGraphMap<&str, ()>) -> i32 {
+  0
 }
 
 #[cfg(test)]
@@ -358,16 +354,13 @@ mod tests {
     gr.add_edge("a", "b", "1");
     println!("{:?}", gr);
   }
-  // #[test]
-  // fn tfind() {
-  //   let mut tree = N::of("a");
-  //   let mut b = N::of("b");
-  //   b.children.push(&N::of("d"));
-  //   tree.children.push(&b);
-  //   tree.children.push(&N::of("c"));
-  //   assert_eq!(
-  //     Some("d".to_string()),
-  //     find(&mut tree, &"d".to_string()).map(|n| n.to_owned().name)
-  //   );
-  // }
+  #[test]
+  fn ex_3() {
+    let data = [
+      "COM)B", "B)C", "C)D", "D)E", "E)F", "B)G", "G)H", "D)I", "E)J", "J)K", "K)L", "K)YOU",
+      "I)SAN",
+    ]
+    .to_vec();
+    assert_eq!(4, minspan(parse(data.clone())));
+  }
 }
