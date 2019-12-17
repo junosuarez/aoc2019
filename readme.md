@@ -508,3 +508,11 @@ But in the end I found https://rust-leipzig.github.io/architecture/2016/12/20/id
 and away we go!
 
 Wait. That didn't work. That's for installing binaries. How do I add a dep? What's the `npm install` of rust? Per https://doc.rust-lang.org/cargo/guide/dependencies.html , I have to manually edit my Cargo.toml file and rerun `cargo build` - how rubygems-ish.
+
+`indextree` is incomplete for my needs, searching crates.io seems easy enough, though lots of noise. i found [`petgraph`](https://docs.rs/petgraph/0.4.13/petgraph/), will give it a spin.
+
+Petgraph looks like it'll fit the bill. I'm using a DiGraphMap datatype. It feels like I'm cheating.
+
+Also, I just successfully reasoned about and used a lifetime for the first time! They're sort of like generics or taints, in that you need to hook up your source and sink, especially if you're going to be returning a pointer and you need to know what the lifetime of that is (or a container of a pointer type). It took me a bunch of tries, but I got it.
+
+And at long last, I mangaged to wrangle petgraph into what I need to write a stack-based depth first search to calculate my total edge distance. I'm calling it a night.
