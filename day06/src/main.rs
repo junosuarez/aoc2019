@@ -1,9 +1,13 @@
+use petgraph::graph::Graph;
 use petgraph::graph::NodeIndex;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::graphmap::GraphMap;
 use petgraph::visit::DfsPostOrder;
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::NodeRef;
+use petgraph::Incoming;
+use petgraph::Outgoing;
+use petgraph::Undirected;
 
 fn main() {}
 
@@ -135,8 +139,107 @@ fn checksum(graph: DiGraphMap<&str, ()>) -> i32 {
   acc
 }
 
-fn minspan(graph: DiGraphMap<&str, ()>) -> i32 {
-  0
+fn parent(graph: &Graph<&str, ()>, node: NodeIndex) -> Option<NodeIndex> {
+  return graph.neighbors_directed(node, Incoming).next();
+}
+
+fn ancestors<'a>(graph: &Graph<&'a str, ()>, src: &str) -> Vec<NodeIndex> {
+  let (node, _) = graph
+    .node_references()
+    .filter(|n| n.weight().eq(&src))
+    .next()
+    .expect("x");
+
+  let mut path = Vec::new();
+  let mut n = node;
+
+  while let Some(p) = parent(graph, n) {
+    println!("an {:?}", n);
+    path.push(p);
+    n = p;
+  }
+
+  return path;
+}
+
+// i'd want this to be generic, but idk that yet
+fn closest_common_ancestor<'a>(
+  a: &'a Vec<NodeIndex>,
+  b: &'a Vec<NodeIndex>,
+) -> Option<&'a NodeIndex> {
+  for x in a {
+    for y in b {
+      if x.eq(&y) {
+        return Some(&x);
+      }
+    }
+  }
+  return None;
+}
+
+// aka shortest path
+fn min_orbrital_transfers<'a, 'b>(graph: &Graph<&'a str, ()>, src: &str, dest: &str) -> i32 {
+  let (src_n, _) = graph
+    .node_references()
+    .filter(|n| n.weight().eq(&src))
+    .next()
+    .expect("x");
+
+  let (dest_n, _) = graph
+    .node_references()
+    .filter(|n| n.weight().eq(&dest))
+    .next()
+    .expect("x");
+
+  // find common ancestor
+  let src_ancestors = ancestors(graph, src);
+  let dest_ancestors = ancestors(graph, dest);
+  println!("s {:?} {:?}", src_n, src_ancestors);
+  println!("d {:?} {:?}", dest_n, dest_ancestors);
+  let concestor =
+    closest_common_ancestor(&src_ancestors, &dest_ancestors).expect("missing concestor");
+  println!("c {:?}", concestor);
+
+  let mut path = Vec::new();
+  // add up src_ancestors to concestor, then down dest_ancestors from concestor
+  let mut s_a = src_ancestors.iter();
+  while let Some(n) = s_a.next() {
+    path.push(n);
+    if n.eq(&concestor) {
+      break;
+    }
+  }
+
+  let mut d_a_r = dest_ancestors.clone();
+  d_a_r.reverse();
+  let mut d_a = d_a_r.iter();
+  let mut in_path = false;
+  while let Some(n) = d_a.next() {
+    if in_path {
+      path.push(n);
+    }
+    if n.eq(&concestor) {
+      in_path = true;
+    }
+  }
+  println!("path {:?}", path);
+  // let ps = path
+  //   .iter()
+  //   .map(|x| graph.node_weight(**x).expect(""))
+  //   .join(", ");
+  // println!("path {:?}", ps);
+  for x in path.clone() {
+    println!("{:?}", graph.node_weight(*x));
+  }
+  // let mut stack = Vec::new();
+  // // from a node, go up to its parent
+  // let parent = graph.neighbors_directed(root, Incoming).next().expect("parent");
+  // let children = graph.neighbors_directed(parent, Outgoing);
+  // if children.any(|n| graph.node_weight(n).expect("node").eq(&dest)) {
+  //   return stack;
+  // }
+  // return 1;
+  return path.len() as i32 - 1;
 }
 
 #[cfg(test)]
@@ -344,6 +447,11 @@ mod tests {
     .to_vec();
     println!("{:?}", parse(data.clone()));
     assert_eq!(227612, checksum(parse(data.clone())));
+
+    assert_eq!(
+      4,
+      min_orbrital_transfers(&parse(data.clone()).into_graph(), "YOU", "SAN")
+    );
   }
   #[test]
   fn ex_2() {
@@ -361,6 +469,9 @@ mod tests {
       "I)SAN",
     ]
     .to_vec();
-    assert_eq!(4, minspan(parse(data.clone())));
+    assert_eq!(
+      4,
+      min_orbrital_transfers(&parse(data.clone()).into_graph(), "YOU", "SAN")
+    );
   }
 }
