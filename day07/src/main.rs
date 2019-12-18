@@ -1,29 +1,233 @@
 use std::convert::TryFrom;
 
-fn main() {}
+fn main() {
+  let mut x = Intcode::new([104, 23, 99].to_vec());
+  println!("{:?}", x.run([].to_vec()));
+}
 
 #[derive(Debug, PartialEq)]
 enum Status<T> {
   AwaitingInput(T),
   Halted(T),
 }
+impl<T> Status<T> {
+  fn unwrap(&self) -> &T {
+    match self {
+      Status::AwaitingInput(out) => out,
+      Status::Halted(out) => out,
+    }
+  }
+}
 
 struct Intcode {
   memory: Vec<i32>,
+  status: Status<Vec<i32>>,
+  instruction_pointer: usize,
+  runs: i32,
 }
 impl Intcode {
   fn new(mut memory: Vec<i32>) -> Self {
-    Intcode { memory: memory }
+    Intcode {
+      memory: memory,
+      status: Status::AwaitingInput([].to_vec()),
+      instruction_pointer: 0,
+      runs: 0,
+    }
   }
-  fn run(&mut self, input: Vec<i32>) -> Vec<i32> {
-    let output = calculate(&mut self.memory, input);
-    return match output {
-      Status::AwaitingInput(out) => out,
-      Status::Halted(out) => out,
-    };
+  fn run(&mut self, input: Vec<i32>) -> &Status<Vec<i32>> {
+    self.runs += 1;
+    println!(
+      "Run {} with {:?} from {}",
+      self.runs, input, self.instruction_pointer
+    );
+    self.status = self.calculate(input);
+    println!("Ending at {:?}", self.status);
+    return &self.status;
   }
-  fn runs(&mut self, input: Vec<i32>) -> Status<Vec<i32>> {
-    return calculate(&mut self.memory, input);
+
+  fn dump(&self) -> Vec<i32> {
+    return self.memory.clone();
+  }
+
+  fn calculate(&mut self, input: Vec<i32>) -> Status<Vec<i32>> {
+    let mut ins = input.into_iter();
+    let mut output: Vec<i32> = Vec::new();
+
+    loop {
+      let instruction = Instruction::parse(self.memory[self.instruction_pointer]);
+      if instruction.opcode == 99 {
+        // halt immediately
+        break;
+      }
+      // println!("op {:?}", instruction);
+      match instruction.opcode {
+        1 => {
+          // add
+          let left_op = self.memory[self.instruction_pointer + 1];
+          let right_op = self.memory[self.instruction_pointer + 2];
+          let dest = self.memory[self.instruction_pointer + 3] as usize;
+          // println!("{:?} ADD {} {} to {}", instruction, left_op, right_op, dest);
+          // println!("before: {}: {}", dest, memory[dest]);
+          let left = match instruction.mode1 {
+            ParameterMode::Position => self.memory[left_op as usize],
+            ParameterMode::Immediate => left_op,
+          };
+          let right = match instruction.mode2 {
+            ParameterMode::Position => self.memory[right_op as usize],
+            ParameterMode::Immediate => right_op,
+          };
+          self.memory[dest] = left + right;
+          // println!("after: {}: {}", dest, memory[dest]);
+          self.instruction_pointer += 4;
+        }
+        2 => {
+          // multiply
+          let left_op = self.memory[self.instruction_pointer + 1];
+          let right_op = self.memory[self.instruction_pointer + 2];
+          let dest = self.memory[self.instruction_pointer + 3] as usize;
+          // println!("{:?} MUL {} {} to {}", instruction, left_op, right_op, dest);
+          // println!("before: {}: {}", dest, memory[dest]);
+          let left = match instruction.mode1 {
+            ParameterMode::Position => self.memory[left_op as usize],
+            ParameterMode::Immediate => left_op,
+          };
+          let right = match instruction.mode2 {
+            ParameterMode::Position => self.memory[right_op as usize],
+            ParameterMode::Immediate => right_op,
+          };
+          self.memory[dest] = left * right;
+          // println!("after: {}: {}", dest, memory[dest]);
+          self.instruction_pointer += 4;
+        }
+        3 => {
+          // input
+          let dest = self.memory[self.instruction_pointer + 1] as usize;
+          // for now, inputs are faked as `1`
+          let input = ins.next();
+
+          if input.is_none() {
+            // exhausted supplied input, yield awaiting more
+            // don't advance the instruction pointer, so that when we re-enter,
+            // it will process this instruction again and attempt to set the destination address
+            return Status::AwaitingInput(output);
+          } else {
+            println!("IN: {:?}", input);
+            self.memory[dest] = input.expect("couldnt read input");
+            self.instruction_pointer += 2;
+          }
+        }
+        4 => {
+          // output
+          let src = self.memory[self.instruction_pointer + 1];
+          let out = match instruction.mode1 {
+            ParameterMode::Position => self.memory[src as usize],
+            ParameterMode::Immediate => src,
+          };
+          println!("OUT: {:?}", out);
+          output.push(out);
+
+          self.instruction_pointer += 2;
+          // return (memory, output);
+        }
+        5 => {
+          // jump-if-true: if the first parameter is non-zero,
+          // it sets the instruction pointer to the value from the second parameter.
+          // Otherwise, it does nothing.
+          let flag = match instruction.mode1 {
+            ParameterMode::Position => {
+              self.memory[self.memory[self.instruction_pointer + 1] as usize]
+            }
+            ParameterMode::Immediate => self.memory[self.instruction_pointer + 1],
+          };
+          let address = match instruction.mode2 {
+            ParameterMode::Position => {
+              self.memory[self.memory[self.instruction_pointer + 2] as usize]
+            }
+            ParameterMode::Immediate => self.memory[self.instruction_pointer + 2],
+          };
+          if flag != 0 {
+            self.instruction_pointer = address as usize;
+          } else {
+            self.instruction_pointer += 3;
+          }
+        }
+        6 => {
+          // jump-if-false: if the first parameter is zero,
+          // it sets the instruction pointer to the value from the second parameter.
+          // Otherwise, it does nothing
+          let flag = match instruction.mode1 {
+            ParameterMode::Position => {
+              self.memory[self.memory[self.instruction_pointer + 1] as usize]
+            }
+            ParameterMode::Immediate => self.memory[self.instruction_pointer + 1],
+          };
+          let address = match instruction.mode2 {
+            ParameterMode::Position => {
+              self.memory[self.memory[self.instruction_pointer + 2] as usize]
+            }
+            ParameterMode::Immediate => self.memory[self.instruction_pointer + 2],
+          };
+          if flag == 0 {
+            self.instruction_pointer = address as usize;
+          } else {
+            self.instruction_pointer += 3;
+          }
+        }
+        7 => {
+          // less than: if the first parameter is less than the second parameter,
+          // it stores 1 in the position given by the third parameter.
+          // Otherwise, it stores 0
+          let left_op = self.memory[self.instruction_pointer + 1];
+          let right_op = self.memory[self.instruction_pointer + 2];
+          let dest = self.memory[self.instruction_pointer + 3] as usize;
+
+          let left = match instruction.mode1 {
+            ParameterMode::Position => self.memory[left_op as usize],
+            ParameterMode::Immediate => left_op,
+          };
+          let right = match instruction.mode2 {
+            ParameterMode::Position => self.memory[right_op as usize],
+            ParameterMode::Immediate => right_op,
+          };
+          self.memory[dest] = match (left, right) {
+            (left, right) if left < right => 1,
+            _ => 0,
+          };
+          self.instruction_pointer += 4;
+        }
+        8 => {
+          // equals: if the first parameter is equal to the second parameter,
+          // it stores 1 in the position given by the third parameter.
+          // Otherwise, it stores 0
+          let left_op = self.memory[self.instruction_pointer + 1];
+          let right_op = self.memory[self.instruction_pointer + 2];
+          let dest = self.memory[self.instruction_pointer + 3] as usize;
+
+          let left = match instruction.mode1 {
+            ParameterMode::Position => self.memory[left_op as usize],
+            ParameterMode::Immediate => left_op,
+          };
+          let right = match instruction.mode2 {
+            ParameterMode::Position => self.memory[right_op as usize],
+            ParameterMode::Immediate => right_op,
+          };
+          self.memory[dest] = match (left, right) {
+            (left, right) if left == right => 1,
+            _ => 0,
+          };
+          self.instruction_pointer += 4;
+        }
+        _ => {
+          // error
+          panic!(
+            "invalid opcode {} at instruction_pointer {}",
+            self.memory[self.instruction_pointer], self.instruction_pointer
+          );
+        }
+      }
+    }
+
+    return Status::Halted(output);
   }
 }
 
@@ -98,177 +302,12 @@ impl Instruction {
   }
 }
 
-fn calculate(memory: &mut Vec<i32>, input: Vec<i32>) -> Status<Vec<i32>> {
-  let mut instruction_pointer = 0;
-  let mut ins = input.into_iter();
-  let mut output: Vec<i32> = Vec::new();
-
-  loop {
-    let instruction = Instruction::parse(memory[instruction_pointer]);
-    if instruction.opcode == 99 {
-      // halt immediately
-      break;
-    }
-    // println!("op {:?}", instruction);
-    match instruction.opcode {
-      1 => {
-        // add
-        let left_op = memory[instruction_pointer + 1];
-        let right_op = memory[instruction_pointer + 2];
-        let dest = memory[instruction_pointer + 3] as usize;
-        // println!("{:?} ADD {} {} to {}", instruction, left_op, right_op, dest);
-        // println!("before: {}: {}", dest, memory[dest]);
-        let left = match instruction.mode1 {
-          ParameterMode::Position => memory[left_op as usize],
-          ParameterMode::Immediate => left_op,
-        };
-        let right = match instruction.mode2 {
-          ParameterMode::Position => memory[right_op as usize],
-          ParameterMode::Immediate => right_op,
-        };
-        memory[dest] = left + right;
-        // println!("after: {}: {}", dest, memory[dest]);
-        instruction_pointer += 4;
-      }
-      2 => {
-        // multiply
-        let left_op = memory[instruction_pointer + 1];
-        let right_op = memory[instruction_pointer + 2];
-        let dest = memory[instruction_pointer + 3] as usize;
-        // println!("{:?} MUL {} {} to {}", instruction, left_op, right_op, dest);
-        // println!("before: {}: {}", dest, memory[dest]);
-        let left = match instruction.mode1 {
-          ParameterMode::Position => memory[left_op as usize],
-          ParameterMode::Immediate => left_op,
-        };
-        let right = match instruction.mode2 {
-          ParameterMode::Position => memory[right_op as usize],
-          ParameterMode::Immediate => right_op,
-        };
-        memory[dest] = left * right;
-        // println!("after: {}: {}", dest, memory[dest]);
-        instruction_pointer += 4;
-      }
-      3 => {
-        // input
-        let dest = memory[instruction_pointer + 1] as usize;
-        // for now, inputs are faked as `1`
-        let input = ins.next().expect("missing ingput");
-        println!("IN: {:?}", input);
-        memory[dest] = input;
-        instruction_pointer += 2;
-      }
-      4 => {
-        // output
-        let src = memory[instruction_pointer + 1];
-        let out = match instruction.mode1 {
-          ParameterMode::Position => memory[src as usize],
-          ParameterMode::Immediate => src,
-        };
-        println!("OUT: {:?}", out);
-        output.push(out);
-
-        instruction_pointer += 2;
-        // return (memory, output);
-      }
-      5 => {
-        // jump-if-true: if the first parameter is non-zero,
-        // it sets the instruction pointer to the value from the second parameter.
-        // Otherwise, it does nothing.
-        let flag = match instruction.mode1 {
-          ParameterMode::Position => memory[memory[instruction_pointer + 1] as usize],
-          ParameterMode::Immediate => memory[instruction_pointer + 1],
-        };
-        let address = match instruction.mode2 {
-          ParameterMode::Position => memory[memory[instruction_pointer + 2] as usize],
-          ParameterMode::Immediate => memory[instruction_pointer + 2],
-        };
-        if flag != 0 {
-          instruction_pointer = address as usize;
-        } else {
-          instruction_pointer += 3;
-        }
-      }
-      6 => {
-        // jump-if-false: if the first parameter is zero,
-        // it sets the instruction pointer to the value from the second parameter.
-        // Otherwise, it does nothing
-        let flag = match instruction.mode1 {
-          ParameterMode::Position => memory[memory[instruction_pointer + 1] as usize],
-          ParameterMode::Immediate => memory[instruction_pointer + 1],
-        };
-        let address = match instruction.mode2 {
-          ParameterMode::Position => memory[memory[instruction_pointer + 2] as usize],
-          ParameterMode::Immediate => memory[instruction_pointer + 2],
-        };
-        if flag == 0 {
-          instruction_pointer = address as usize;
-        } else {
-          instruction_pointer += 3;
-        }
-      }
-      7 => {
-        // less than: if the first parameter is less than the second parameter,
-        // it stores 1 in the position given by the third parameter.
-        // Otherwise, it stores 0
-        let left_op = memory[instruction_pointer + 1];
-        let right_op = memory[instruction_pointer + 2];
-        let dest = memory[instruction_pointer + 3] as usize;
-
-        let left = match instruction.mode1 {
-          ParameterMode::Position => memory[left_op as usize],
-          ParameterMode::Immediate => left_op,
-        };
-        let right = match instruction.mode2 {
-          ParameterMode::Position => memory[right_op as usize],
-          ParameterMode::Immediate => right_op,
-        };
-        memory[dest] = match (left, right) {
-          (left, right) if left < right => 1,
-          _ => 0,
-        };
-        instruction_pointer += 4;
-      }
-      8 => {
-        // equals: if the first parameter is equal to the second parameter,
-        // it stores 1 in the position given by the third parameter.
-        // Otherwise, it stores 0
-        let left_op = memory[instruction_pointer + 1];
-        let right_op = memory[instruction_pointer + 2];
-        let dest = memory[instruction_pointer + 3] as usize;
-
-        let left = match instruction.mode1 {
-          ParameterMode::Position => memory[left_op as usize],
-          ParameterMode::Immediate => left_op,
-        };
-        let right = match instruction.mode2 {
-          ParameterMode::Position => memory[right_op as usize],
-          ParameterMode::Immediate => right_op,
-        };
-        memory[dest] = match (left, right) {
-          (left, right) if left == right => 1,
-          _ => 0,
-        };
-        instruction_pointer += 4;
-      }
-      _ => {
-        // error
-        panic!(
-          "invalid opcode {} at instruction_pointer {}",
-          memory[instruction_pointer], instruction_pointer
-        );
-      }
-    }
-  }
-
-  return Status::Halted(output);
-}
-
 fn calc_str(expr: String, ins: Vec<i32>) -> String {
-  let m = &mut parse(expr);
-  let out = &calculate(m, ins);
+  let m = parse(expr);
+  let mut c = Intcode::new(m);
+  let out = c.run(ins);
   println!("out: {:?}", out);
-  return render(m);
+  return render(&c.dump());
 }
 
 #[cfg(test)]
@@ -297,43 +336,37 @@ mod tests {
   #[test]
   fn input() {
     // read input to position 3 and then halt
-    let mut mem = [3, 3, 99, 0].to_vec();
-    let out = calculate(&mut mem, [22].to_vec());
-    println!("f, {:?}", mem);
-    assert_eq!([3, 3, 99, 22].to_vec(), mem);
+    let mut c = Intcode::new([3, 3, 99, 0].to_vec());
+    c.run([22].to_vec());
+    assert_eq!([3, 3, 99, 22].to_vec(), c.dump());
   }
 
   #[test]
   fn output() {
     // write position 3 to output and then halt
-    let mut mem = [4, 3, 99, 55].to_vec();
-    let out = calculate(&mut mem, [].to_vec());
-    println!("o, {:?} {:?}", mem, out);
-    assert_eq!(Status::Halted([55].to_vec()), out);
+    let mut c = Intcode::new([4, 3, 99, 55].to_vec());
+    let out = c.run([].to_vec());
+    assert_eq!(&Status::Halted([55].to_vec()), out);
   }
 
   #[test]
   fn io() {
     // read input to position 5, output position 5, and then halt
-    let mut mem = [3, 5, 4, 5, 99, 0].to_vec();
-    let out = calculate(&mut mem, [22].to_vec());
-    println!("f, {:?} {:?}", mem, out);
-    assert_eq!([3, 5, 4, 5, 99, 22].to_vec(), mem);
-    assert_eq!(Status::Halted([22].to_vec()), out);
+    let mut c = Intcode::new([3, 5, 4, 5, 99, 0].to_vec());
+    let out = c.run([22].to_vec());
+    assert_eq!(&Status::Halted([22].to_vec()), out);
+    assert_eq!([3, 5, 4, 5, 99, 22].to_vec(), c.dump());
   }
 
   #[test]
   fn e2_1() {
-    let out = calculate(
-      &mut [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec(),
-      [8].to_vec(),
-    );
-    assert_eq!(Status::Halted([1].to_vec()), out);
-    let out = calculate(
-      &mut [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec(),
-      [0].to_vec(),
-    );
-    assert_eq!(Status::Halted([0].to_vec()), out);
+    let mut c = Intcode::new([3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec());
+    let out = c.run([8].to_vec());
+    assert_eq!(&Status::Halted([1].to_vec()), out);
+
+    let mut c = Intcode::new([3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec());
+    let out = c.run([0].to_vec());
+    assert_eq!(&Status::Halted([0].to_vec()), out);
   }
 
   #[test]
@@ -343,38 +376,39 @@ mod tests {
     // output 1000 if the input value is equal to 8,
     // or output 1001 if the input value is greater than 8.
 
-    let out = calculate(
-      &mut [
+    let mut c = Intcode::new(
+      [
         3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
         1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
         1105, 1, 46, 98, 99,
       ]
       .to_vec(),
-      [7].to_vec(),
     );
-    assert_eq!(Status::Halted([999].to_vec()), out);
+    let out = c.run([7].to_vec());
 
-    let out = calculate(
-      &mut [
-        3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
-        1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
-        1105, 1, 46, 98, 99,
-      ]
-      .to_vec(),
-      [8].to_vec(),
-    );
-    assert_eq!(Status::Halted([1000].to_vec()), out);
+    assert_eq!(&Status::Halted([999].to_vec()), out);
 
-    let out = calculate(
-      &mut [
+    let mut c = Intcode::new(
+      [
         3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
         1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
         1105, 1, 46, 98, 99,
       ]
       .to_vec(),
-      [9].to_vec(),
     );
-    assert_eq!(Status::Halted([1001].to_vec()), out);
+    let out = c.run([8].to_vec());
+    assert_eq!(&Status::Halted([1000].to_vec()), out);
+
+    let mut c = Intcode::new(
+      [
+        3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
+        1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
+        1105, 1, 46, 98, 99,
+      ]
+      .to_vec(),
+    );
+    let out = c.run([9].to_vec());
+    assert_eq!(&Status::Halted([1001].to_vec()), out);
   }
 
   fn day07_series(mem: Vec<i32>, phase_settings: Vec<i32>) -> i32 {
@@ -383,6 +417,7 @@ mod tests {
       let mut amp = Intcode::new(mem.clone());
       let out = *amp
         .run([setting, signal].to_vec())
+        .unwrap()
         .first()
         .expect("no output");
       println!("[ {}, {} ] {}", setting, signal, out);
@@ -398,6 +433,7 @@ mod tests {
       let mut amp = Intcode::new(mem.clone());
       let out = *amp
         .run([setting, signal].to_vec())
+        .unwrap()
         .first()
         .expect("no output");
       println!("[ {}, {} ] {}", setting, signal, out);
@@ -515,5 +551,28 @@ mod tests {
   #[test]
   fn day07_part1() {
     assert_eq!((116680, [3, 2, 4, 1, 0].to_vec()), day07_solver());
+  }
+
+  #[test]
+  fn reentrant() {
+    let mut c = Intcode::new(
+      [
+        // reads a number, prints it, reads a number, prints it, halts
+        3, 10, 4, 10, 3, 10, 4, 10, 99, 0, -1,
+      ]
+      .to_vec(),
+    );
+
+    // start with no input
+    let out1 = c.run([].to_vec());
+    assert_eq!(&Status::AwaitingInput([].to_vec()), out1);
+
+    // resume with 100, it echos it and awaits again
+    let out2 = c.run([100].to_vec());
+    assert_eq!(&Status::AwaitingInput([100].to_vec()), out2);
+
+    // resume with 23, it echos it and halts
+    let out3 = c.run([23].to_vec());
+    assert_eq!(&Status::Halted([23].to_vec()), out3);
   }
 }

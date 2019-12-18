@@ -528,3 +528,5 @@ I'm going to try out some rust OO skills and implement this as a newable struct.
 This was a lot easier than I first took it for. Lemme try part 2.
 
 Ahh, here's where it gets trickier- they take multiple inputs. Lemme see what I can do- might have to fake it.
+
+I refactored the computer by introducing a Status wrapper enum for AwaitingInput or Halted. Next, I need to propagate this into the calculate function so that it can return AwaitingInput instead of panicing when it is starved for input. This makes calling Intcode.run re-entrant, which should give me the level of concurrency I need - single threaded so no actual parallelism, but with the various memory spaces running concurrent with each other in a strict sense, synchronized by i/o.
