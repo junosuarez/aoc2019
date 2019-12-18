@@ -526,3 +526,5 @@ Dusting off the intcode computer again. I'm going to need to hook several up in 
 I'm going to try out some rust OO skills and implement this as a newable struct. I'll also need to think about how i think about concurrency, given that io can block. I can cheat on that part, though, since these are all running in serial, and there's no actual concurrency requirement 😈 so I'll defer this - I just have to be able to feed output from one into the input of the next.
 
 This was a lot easier than I first took it for. Lemme try part 2.
+
+Ahh, here's where it gets trickier- they take multiple inputs. Lemme see what I can do- might have to fake it.

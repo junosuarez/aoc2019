@@ -2,6 +2,12 @@ use std::convert::TryFrom;
 
 fn main() {}
 
+#[derive(Debug, PartialEq)]
+enum Status<T> {
+  AwaitingInput(T),
+  Halted(T),
+}
+
 struct Intcode {
   memory: Vec<i32>,
 }
@@ -9,9 +15,15 @@ impl Intcode {
   fn new(mut memory: Vec<i32>) -> Self {
     Intcode { memory: memory }
   }
-  fn start(&mut self, input: Vec<i32>) -> Vec<i32> {
-    let (_, output) = calculate(&mut self.memory, input);
-    return output;
+  fn run(&mut self, input: Vec<i32>) -> Vec<i32> {
+    let output = calculate(&mut self.memory, input);
+    return match output {
+      Status::AwaitingInput(out) => out,
+      Status::Halted(out) => out,
+    };
+  }
+  fn runs(&mut self, input: Vec<i32>) -> Status<Vec<i32>> {
+    return calculate(&mut self.memory, input);
   }
 }
 
@@ -86,7 +98,7 @@ impl Instruction {
   }
 }
 
-fn calculate(memory: &mut Vec<i32>, input: Vec<i32>) -> (&mut Vec<i32>, Vec<i32>) {
+fn calculate(memory: &mut Vec<i32>, input: Vec<i32>) -> Status<Vec<i32>> {
   let mut instruction_pointer = 0;
   let mut ins = input.into_iter();
   let mut output: Vec<i32> = Vec::new();
@@ -249,14 +261,14 @@ fn calculate(memory: &mut Vec<i32>, input: Vec<i32>) -> (&mut Vec<i32>, Vec<i32>
     }
   }
 
-  return (memory, output);
+  return Status::Halted(output);
 }
 
 fn calc_str(expr: String, ins: Vec<i32>) -> String {
   let m = &mut parse(expr);
-  let (mem, _out) = &calculate(m, ins);
-  println!("out: {:?}", _out);
-  return render(mem);
+  let out = &calculate(m, ins);
+  println!("out: {:?}", out);
+  return render(m);
 }
 
 #[cfg(test)]
@@ -286,42 +298,42 @@ mod tests {
   fn input() {
     // read input to position 3 and then halt
     let mut mem = [3, 3, 99, 0].to_vec();
-    let (rmem, rout) = calculate(&mut mem, [22].to_vec());
-    println!("f, {:?}", rmem);
-    assert_eq!([3, 3, 99, 22].to_vec(), *rmem);
+    let out = calculate(&mut mem, [22].to_vec());
+    println!("f, {:?}", mem);
+    assert_eq!([3, 3, 99, 22].to_vec(), mem);
   }
 
   #[test]
   fn output() {
     // write position 3 to output and then halt
     let mut mem = [4, 3, 99, 55].to_vec();
-    let (rmem, routput) = calculate(&mut mem, [].to_vec());
-    println!("o, {:?} {:?}", rmem, routput);
-    assert_eq!([55].to_vec(), routput);
+    let out = calculate(&mut mem, [].to_vec());
+    println!("o, {:?} {:?}", mem, out);
+    assert_eq!(Status::Halted([55].to_vec()), out);
   }
 
   #[test]
   fn io() {
     // read input to position 5, output position 5, and then halt
     let mut mem = [3, 5, 4, 5, 99, 0].to_vec();
-    let (rmem, rout) = calculate(&mut mem, [22].to_vec());
-    println!("f, {:?} {:?}", rmem, rout);
-    assert_eq!([3, 5, 4, 5, 99, 22].to_vec(), *rmem);
-    assert_eq!([22].to_vec(), rout);
+    let out = calculate(&mut mem, [22].to_vec());
+    println!("f, {:?} {:?}", mem, out);
+    assert_eq!([3, 5, 4, 5, 99, 22].to_vec(), mem);
+    assert_eq!(Status::Halted([22].to_vec()), out);
   }
 
   #[test]
   fn e2_1() {
-    let (_m, out) = calculate(
+    let out = calculate(
       &mut [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec(),
       [8].to_vec(),
     );
-    assert_eq!([1].to_vec(), out);
-    let (_, out) = calculate(
+    assert_eq!(Status::Halted([1].to_vec()), out);
+    let out = calculate(
       &mut [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8].to_vec(),
       [0].to_vec(),
     );
-    assert_eq!([0].to_vec(), out);
+    assert_eq!(Status::Halted([0].to_vec()), out);
   }
 
   #[test]
@@ -331,7 +343,7 @@ mod tests {
     // output 1000 if the input value is equal to 8,
     // or output 1001 if the input value is greater than 8.
 
-    let (_, out) = calculate(
+    let out = calculate(
       &mut [
         3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
         1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
@@ -340,9 +352,9 @@ mod tests {
       .to_vec(),
       [7].to_vec(),
     );
-    assert_eq!([999].to_vec(), out);
+    assert_eq!(Status::Halted([999].to_vec()), out);
 
-    let (_, out) = calculate(
+    let out = calculate(
       &mut [
         3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
         1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
@@ -351,9 +363,9 @@ mod tests {
       .to_vec(),
       [8].to_vec(),
     );
-    assert_eq!([1000].to_vec(), out);
+    assert_eq!(Status::Halted([1000].to_vec()), out);
 
-    let (_, out) = calculate(
+    let out = calculate(
       &mut [
         3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0,
         1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20,
@@ -362,7 +374,7 @@ mod tests {
       .to_vec(),
       [9].to_vec(),
     );
-    assert_eq!([1001].to_vec(), out);
+    assert_eq!(Status::Halted([1001].to_vec()), out);
   }
 
   fn day07_series(mem: Vec<i32>, phase_settings: Vec<i32>) -> i32 {
@@ -370,7 +382,22 @@ mod tests {
     for setting in phase_settings {
       let mut amp = Intcode::new(mem.clone());
       let out = *amp
-        .start([setting, signal].to_vec())
+        .run([setting, signal].to_vec())
+        .first()
+        .expect("no output");
+      println!("[ {}, {} ] {}", setting, signal, out);
+      signal = out;
+    }
+
+    return signal;
+  }
+
+  fn day07_feedback_loop(mem: Vec<i32>, phase_settings: Vec<i32>) -> i32 {
+    let mut signal = 0;
+    for setting in phase_settings {
+      let mut amp = Intcode::new(mem.clone());
+      let out = *amp
+        .run([setting, signal].to_vec())
         .first()
         .expect("no output");
       println!("[ {}, {} ] {}", setting, signal, out);
@@ -448,7 +475,7 @@ mod tests {
       .to_vec(),
     );
 
-    let out = ampA.start([1, 0].to_vec());
+    let out = ampA.run([1, 0].to_vec());
     println!("{:?}", out);
   }
 
