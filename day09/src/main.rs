@@ -22,6 +22,7 @@ impl<T> Status<T> {
 
 struct Intcode {
   memory: Vec<i64>,
+  codelen: usize,
   status: Status<Vec<i64>>,
   instruction_pointer: usize,
   relative_base: usize,
@@ -30,11 +31,13 @@ struct Intcode {
 }
 impl Intcode {
   fn new(mut memory: Vec<i64>) -> Self {
+    let codelen = memory.len();
     // start with 2KiB memory
     memory.resize(2 * 1024, 0);
 
     Intcode {
       memory: memory,
+      codelen: codelen,
       status: Status::AwaitingInput([].to_vec()),
       instruction_pointer: 0,
       relative_base: 0,
@@ -61,7 +64,7 @@ impl Intcode {
   }
 
   fn dump(&self) -> Vec<i64> {
-    return self.memory.clone();
+    return self.memory[0..self.codelen].to_vec().clone();
   }
 
   fn calculate(&mut self, input: Vec<i64>) -> Status<Vec<i64>> {
@@ -728,7 +731,7 @@ mod tests {
   #[test]
   fn day07_feedback_part2() {
     assert_eq!(
-      (139629729, [0, 0, 0, 0, 0].to_vec()),
+      (89603079, [7, 6, 5, 8, 9].to_vec()),
       day07_feedback_solver()
     );
   }
