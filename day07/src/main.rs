@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::convert::TryFrom;
 
 fn main() {
@@ -24,6 +25,7 @@ struct Intcode {
   status: Status<Vec<i32>>,
   instruction_pointer: usize,
   runs: i32,
+  tag: String,
 }
 impl Intcode {
   fn new(mut memory: Vec<i32>) -> Self {
@@ -32,17 +34,25 @@ impl Intcode {
       status: Status::AwaitingInput([].to_vec()),
       instruction_pointer: 0,
       runs: 0,
+      tag: "".to_string(),
     }
   }
   fn run(&mut self, input: Vec<i32>) -> &Status<Vec<i32>> {
     self.runs += 1;
     println!(
-      "Run {} with {:?} from {}",
-      self.runs, input, self.instruction_pointer
+      "{} Run {} with {:?} from {}",
+      self.tag, self.runs, input, self.instruction_pointer
     );
     self.status = self.calculate(input);
-    println!("Ending at {:?}", self.status);
+    println!(
+      "Ending at {}: {:?} \n",
+      self.instruction_pointer, self.status
+    );
     return &self.status;
+  }
+
+  fn tag(&mut self, name: &str) {
+    self.tag += name;
   }
 
   fn dump(&self) -> Vec<i32> {
@@ -429,15 +439,28 @@ mod tests {
 
   fn day07_feedback_loop(mem: Vec<i32>, phase_settings: Vec<i32>) -> i32 {
     let mut signal = 0;
+    let mut amps = VecDeque::new();
+    let mut name = 0;
+
     for setting in phase_settings {
       let mut amp = Intcode::new(mem.clone());
-      let out = *amp
-        .run([setting, signal].to_vec())
-        .unwrap()
-        .first()
-        .expect("no output");
-      println!("[ {}, {} ] {}", setting, signal, out);
-      signal = out;
+      amp.tag(&format!("{}) ", name));
+      name += 1;
+      // initialize with setting, status will be AwaitingInput
+      amp.run([setting].to_vec());
+      amps.push_back(amp);
+    }
+
+    while let Some(mut amp) = amps.pop_front() {
+      match amp.run([signal].to_vec()) {
+        Status::AwaitingInput(out) => {
+          signal = *out.first().expect("no output");
+          amps.push_back(amp);
+        }
+        Status::Halted(out) => {
+          signal = *out.first().expect("no output");
+        }
+      }
     }
 
     return signal;
@@ -489,6 +512,65 @@ mod tests {
               }
               let settings = [a, b, c, d, e].to_vec();
               let signal = day07_series(mem.clone(), settings.clone());
+              if signal > high {
+                high = signal;
+                high_settings = settings;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return (high, high_settings);
+  }
+
+  // returns signal, phase settings
+  fn day07_feedback_solver() -> (i32, Vec<i32>) {
+    let mem = [
+      3, 8, 1001, 8, 10, 8, 105, 1, 0, 0, 21, 30, 47, 60, 81, 102, 183, 264, 345, 426, 99999, 3, 9,
+      1002, 9, 5, 9, 4, 9, 99, 3, 9, 1002, 9, 5, 9, 1001, 9, 4, 9, 1002, 9, 4, 9, 4, 9, 99, 3, 9,
+      101, 2, 9, 9, 1002, 9, 4, 9, 4, 9, 99, 3, 9, 1001, 9, 3, 9, 1002, 9, 2, 9, 101, 5, 9, 9,
+      1002, 9, 2, 9, 4, 9, 99, 3, 9, 102, 4, 9, 9, 101, 4, 9, 9, 1002, 9, 3, 9, 101, 2, 9, 9, 4, 9,
+      99, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9,
+      101, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9,
+      4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 99, 3,
+      9, 1001, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1002, 9,
+      2, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9,
+      3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 99, 3, 9,
+      101, 2, 9, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9,
+      4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9,
+      1002, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 99, 3, 9, 102, 2,
+      9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3,
+      9, 1001, 9, 1, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 102, 2, 9,
+      9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 99, 3, 9, 1002, 9, 2, 9, 4, 9,
+      3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 102, 2,
+      9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9,
+      3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 99,
+    ]
+    .to_vec();
+    let mut high = 0;
+    let mut high_settings = [0, 0, 0, 0, 0].to_vec();
+    // heh...
+    for a in 5..10 {
+      for b in 5..10 {
+        if b == a {
+          continue;
+        }
+        for c in 5..10 {
+          if c == b || c == a {
+            continue;
+          }
+          for d in 5..10 {
+            if d == c || d == b || d == a {
+              continue;
+            }
+            for e in 5..10 {
+              if e == d || e == c || e == b || e == a {
+                continue;
+              }
+              let settings = [a, b, c, d, e].to_vec();
+              let signal = day07_feedback_loop(mem.clone(), settings.clone());
               if signal > high {
                 high = signal;
                 high_settings = settings;
@@ -574,5 +656,28 @@ mod tests {
     // resume with 23, it echos it and halts
     let out3 = c.run([23].to_vec());
     assert_eq!(&Status::Halted([23].to_vec()), out3);
+  }
+
+  #[test]
+  fn day07_feedback_ex1() {
+    assert_eq!(
+      139629729,
+      day07_feedback_loop(
+        [
+          3, 26, 1001, 26, -4, 26, 3, 27, 1002, 27, 2, 27, 1, 27, 26, 27, 4, 27, 1001, 28, -1, 28,
+          1005, 28, 6, 99, 0, 0, 5
+        ]
+        .to_vec(),
+        [9, 8, 7, 6, 5].to_vec()
+      )
+    )
+  }
+
+  #[test]
+  fn day07_feedback_part2() {
+    assert_eq!(
+      (139629729, [0, 0, 0, 0, 0].to_vec()),
+      day07_feedback_solver()
+    );
   }
 }
