@@ -516,3 +516,13 @@ Petgraph looks like it'll fit the bill. I'm using a DiGraphMap datatype. It feel
 Also, I just successfully reasoned about and used a lifetime for the first time! They're sort of like generics or taints, in that you need to hook up your source and sink, especially if you're going to be returning a pointer and you need to know what the lifetime of that is (or a container of a pointer type). It took me a bunch of tries, but I got it.
 
 And at long last, I mangaged to wrangle petgraph into what I need to write a stack-based depth first search to calculate my total edge distance. I'm calling it a night.
+
+I spoke too soon about not dereferencing a pointer in rust- I had to do it to satisfy a method signature.
+
+## Day 7
+
+Dusting off the intcode computer again. I'm going to need to hook several up in serial, I need to change the io to block, rather than fail immediately. I also want to spent a moment cleaning this up first, since I know I'm going to need them later.
+
+I'm going to try out some rust OO skills and implement this as a newable struct. I'll also need to think about how i think about concurrency, given that io can block. I can cheat on that part, though, since these are all running in serial, and there's no actual concurrency requirement 😈 so I'll defer this - I just have to be able to feed output from one into the input of the next.
+
+This was a lot easier than I first took it for. Lemme try part 2.
