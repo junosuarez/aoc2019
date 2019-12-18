@@ -536,3 +536,9 @@ For part 2, I needed a queue rather than a stack for traversing my infinite feed
 Today I also had my first experience implementing a wrapper enum like the builtin `Some(x)` and it was okay, but I'm not convinced I'm at the right design vs an anonymous tuple. I also had my first big chunk of refactoring, and, while very manual, it worked okay - I was able to make the changes I want and keep my code compiling and my old tests green.
 
 ## Day 8
+
+I'm skipping for now to keep with the intcode track.
+
+## Day 9
+
+Let's see if the refactoring paid off to be able to extend this.
